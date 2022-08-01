@@ -1,5 +1,5 @@
 [package]
-authors = ["Maou Shimazu <maoushimazu@protonmail.com>", "BrandonDoesDev <brandon.powell.dev@gmail.com>", "Ruby Star <perhaps-you-know@what-is.ml>"]
+authors = ["Maou Shimazu <maoushimazu@protonmail.com>", "Brandon <brandon570@proton.me>", "Ruby Star <perhaps-you-know@what-is.ml>"]
 description = "A C++ Project Manager"
 edition = "2021"
 exclude = [
