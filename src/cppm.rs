@@ -27,7 +27,9 @@ struct Config {
 
 /// writes project location to config file
 pub fn write(project_name: &str, location: &str) {
-    File::create(&configfile()).expect("couldnt create config file");
+    if !Path::new(&configfile()).exists() {
+        File::create(&configfile()).expect("couldnt create config file");
+    }
 
     let config: Config = Config {
         name: project_name.to_string(),
@@ -101,25 +103,14 @@ impl Cppm {
             process::exit(0);
         }
 
-        if init_type == "c" {
-            let mut s = Cppm::init();
-            s.project_name = _project_name;
-            let pn = s.project_name.clone();
-            s.editor = editor;
-            fs::create_dir_all(s.project_name.clone()).expect("Folder creation failed.");
-            fs::create_dir_all(format!("{}/src", s.project_name)).expect("Folder creation failed.");
-            fs::create_dir_all(format!("{}/include", s.project_name))
-                .expect("Folder creation failed.");
-
+        let local_open = |s: &Cppm, pn: String| {
             if !s.editor.contains("null") {
-                let mut child = if cfg!(target_os = "windows") {
-                    Command::new("powershell")
-                        .arg(&format!("{} {}", s.editor, pn))
-                        .spawn()
-                        .expect("Failed to open editor.")
-                } else if cfg!(target_os = "linux") || cfg!(target_os = "unix") {
-                    Command::new("sh")
-                        .arg(&format!("{} {}", s.editor, pn))
+                let mut child = if cfg!(target_os = "windows")
+                    || cfg!(target_os = "linux")
+                    || cfg!(target_os = "unix")
+                {
+                    Command::new(s.editor.clone())
+                        .arg(pn)
                         .spawn()
                         .expect("Failed to open editor.")
                 } else {
@@ -132,13 +123,26 @@ impl Cppm {
                 };
                 child.wait().expect("Failed to wait on process.");
             }
+        };
+
+        if init_type == "c" {
+            let mut s = Cppm::init();
+            s.project_name = _project_name;
+            let pn = s.project_name.clone();
+            s.editor = editor;
+            fs::create_dir_all(s.project_name.clone()).expect("Folder creation failed.");
+            fs::create_dir_all(format!("{}/src", s.project_name)).expect("Folder creation failed.");
+            fs::create_dir_all(format!("{}/include", s.project_name))
+                .expect("Folder creation failed.");
+
             // switch to closure
-            let files = |s: Cppm| -> (String, String) {
+            let files = |s: &Cppm| -> (String, String) {
                 let main: String = format!("{}/src/main.c", s.project_name);
                 let header: String = format!("{0}/include/{0}.h", s.project_name);
                 (main, header)
             };
-            let (main, header) = files(s);
+
+            let (main, header) = files(&s);
             let main_path = Path::new(main.as_str());
             let header_path = Path::new(header.as_str());
 
@@ -160,6 +164,8 @@ impl Cppm {
                 pn.as_str(),
                 &format!("{}/{}", std::env::current_dir().unwrap().display(), pn),
             );
+            local_open(&s, pn.clone());
+
         } else {
             let mut s = Cppm::init();
             s.project_name = _project_name;
@@ -170,28 +176,7 @@ impl Cppm {
             fs::create_dir_all(format!("{}/include", s.project_name))
                 .expect("Folder creation failed.");
 
-            if !s.editor.contains("null") {
-                let mut child = if cfg!(target_os = "windows") {
-                    Command::new("powershell") // NOTE: this was implemented as spawning a shell in the event of trying to spawn terminal editors, if there is no solution in the future then spawn the editor and pass the project location as an arg.
-                        .arg(&format!("{} {}", s.editor, pn))
-                        .spawn()
-                        .expect("Failed to open editor.")
-                } else if cfg!(target_os = "linux") || cfg!(target_os = "unix") {
-                    Command::new("sh")
-                        .arg(&format!("{} {}", s.editor, pn))
-                        .spawn()
-                        .expect("Failed to open editor.")
-                } else {
-                    println!(
-                        "{}",
-                        "Your OS is not supported, please open an issue to get it implemented."
-                            .red()
-                    );
-                    return;
-                };
-                child.wait().expect("Failed to wait on process.");
-            }
-            let (main, header) = path(s);
+            let (main, header) = path(&s);
             let main_path = Path::new(main.as_str());
             let header_path = Path::new(header.as_str());
 
@@ -213,6 +198,8 @@ impl Cppm {
                 pn.as_str(),
                 &format!("{}/{}", std::env::current_dir().unwrap().display(), pn),
             );
+
+            local_open(&s, pn.clone());
         }
     }
 
@@ -241,7 +228,7 @@ impl Cppm {
             }
         };
 
-        if builder::subprocess(&editor, "").is_err() {
+        if builder::subprocess(&editor, "--version").is_err() {
             println!(
                 "    {}",
                 "Editor does not exist or cannot be opened with the argument passed.".red()
@@ -316,8 +303,6 @@ impl Cppm {
 
     /// check version status of cppm gh release and package version
     pub fn status() {
-        let current_version = env!("CARGO_PKG_VERSION");
-
         let result = minreq::get(
             "https://api.github.com/repos/cpp-project-manager/cpp-project-manager/releases/latest",
         )
@@ -331,8 +316,8 @@ impl Cppm {
         let latest = &json_value["tag_name"];
 
         println!(
-            "Current version: cppm v{} - Latest version: cppm {}",
-            current_version, latest
+            "Installed version: cppm \"{}\" - Latest version: cppm {}",
+            env!("CARGO_PKG_VERSION"), latest
         )
     }
 
@@ -467,7 +452,7 @@ impl Cppm {
 }
 
 // returns a tuple of src and include files
-fn path(s: Cppm) -> (String, String) {
+fn path(s: &Cppm) -> (String, String) {
     let main: String = format!("{}/src/main.cpp", s.project_name);
     let header: String = format!("{0}/include/{0}.hpp", s.project_name);
     (main, header)

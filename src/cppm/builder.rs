@@ -38,7 +38,7 @@ pub fn c() -> std::io::Result<Compilers> {
         println!("Gcc is installed.");
         Ok(Compilers::Gcc)
     } else {
-        println!("Neither G++ or Clang++ is installed.");
+        println!("Neither Gcc or Clang is installed.");
         Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "Neither Gcc or Clang is installed.",

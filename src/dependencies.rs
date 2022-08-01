@@ -37,21 +37,16 @@ pub fn read_deps(includes: Vec<&str>) -> Vec<String> {
                         println!("Error Occured Cloning Dependency {key}: `{e}`");
                     }
                 }
+                let canc: String = std::fs::canonicalize(loc)
+                    .unwrap()
+                    .as_os_str()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+
                 #[cfg(windows)]
-                let canc: String = std::fs::canonicalize(loc)
-                    .unwrap()
-                    .as_os_str()
-                    .to_str()
-                    .unwrap()
-                    .replace('\\', "\\")
-                    .trim()[4..]
-                    .to_owned();
-                #[cfg(unix)]
-                let canc: String = std::fs::canonicalize(loc)
-                    .unwrap()
-                    .as_os_str()
-                    .to_str()
-                    .unwrap();
+                let canc = canc.replace('\\', "\\").trim()[4..].to_string();
+                
                 let llc: LocalConfig = toml::from_str(&std::fs::read_to_string(p.clone()).unwrap())
                     .expect("Dependency isnt a cppm project");
                 let local_includes: Vec<String> = llc.project["include"]
@@ -101,16 +96,14 @@ pub fn read_deps(includes: Vec<&str>) -> Vec<String> {
                     .unwrap()
                     .is_empty()
                 {
-                    pi =
-                        toml::from_str(&std::fs::read_to_string(format!("Cppm.lock")).unwrap())
-                            .unwrap();
+                    pi = toml::from_str(&std::fs::read_to_string(format!("Cppm.lock")).unwrap())
+                        .unwrap();
                 } else {
                     pi = PackageIncludes::new();
                 }
                 for mut i in pi.package {
                     includes.append(&mut i.package_includes);
                 }
-                
             }
         }
     }

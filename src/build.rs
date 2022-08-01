@@ -21,7 +21,7 @@ use std::{
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LocalConfig {
     pub project: HashMap<String, String>,
-    pub dependencies: HashMap<String, String>
+    pub dependencies: HashMap<String, String>,
 }
 
 /// Generates an include command based on all the folders passed into the argument.\
@@ -81,27 +81,22 @@ pub fn build(release: bool, run_type: bool, i: bool, c: bool) {
         );
         exit(0);
     }
-    
+
     let mut target = String::new();
     let mut build_t = String::new();
 
     let l: LocalConfig = toml::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
+
+    let canc: String = std::fs::canonicalize(".")
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .to_owned();
+
     #[cfg(windows)]
-    let canc: String = std::fs::canonicalize(".")
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .replace('\\', "\\")
-        .trim()[4..]
-        .to_owned();
-    #[cfg(unix)]
-    let canc: String = std::fs::canonicalize(".")
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .to_owned();
+    let canc = canc.replace('\\', "\\").trim()[4..].to_owned();
+
     println!(
         "   {} {} v{} ({})",
         "Compiling".bright_blue().bold(),
@@ -173,8 +168,6 @@ pub fn build(release: bool, run_type: bool, i: bool, c: bool) {
     } else {
         compilers.compilers["cpp"].clone()
     };
-
-    // println!("{}", compilers.compilers["c"].clone());
 
     if release {
         // use variables to make a better implimentation of this
@@ -254,11 +247,6 @@ pub fn build(release: bool, run_type: bool, i: bool, c: bool) {
             "Finished".bright_blue().bold(),
             start.elapsed()
         );
-        // progress.println(&format!(
-        //     "    {} {build_t} [{target}] target(s) in {:?}",
-        //     "Finished".bright_blue().bold(),
-        //     start.elapsed()
-        // ));
     }
 
     if i {
@@ -267,21 +255,16 @@ pub fn build(release: bool, run_type: bool, i: bool, c: bool) {
         #[cfg(unix)]
         install(format!("{}", cppm.project["name"]));
     }
+
+    let cc = fs::canonicalize(cppm.project["src"].clone())
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .to_string();
+
     #[cfg(windows)]
-    let cc = fs::canonicalize(cppm.project["src"].clone())
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .trim()[4..]
-        .to_string();
-    #[cfg(unix)]
-    let cc = fs::canonicalize(cppm.project["src"].clone())
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let cc = cc.trim()[4..].to_string();
 
     crate::templates::compile_commands(
         canc.clone(),
@@ -315,21 +298,17 @@ pub fn run(release: bool, run_type: bool, c: bool, extra_args: Vec<String>) {
     let name = format!("build/{}.exe", cppm.project["name"]);
     #[cfg(unix)]
     let name = format!("build/{}", cppm.project["name"]);
+
+    let canc: String = std::fs::canonicalize(name)
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .to_owned();
+
     #[cfg(windows)]
-    let canc: String = std::fs::canonicalize(name)
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .trim()[4..]
-        .to_owned();
-    #[cfg(unix)]
-    let canc: String = std::fs::canonicalize(name)
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap()
-        .to_owned();
+    let canc = canc.trim()[4..].to_string();
+    
     println!(
         "     {} `{} {}`",
         "Running".bright_blue().bold(),
