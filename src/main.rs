@@ -1,8 +1,8 @@
 mod build;
 mod clangd;
 mod cppm;
-mod templates;
 mod dependencies;
+mod templates;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use cppm::*;
@@ -16,6 +16,10 @@ struct Args {
     /// Lists all projects configured with cppm
     #[clap(short, long)]
     list: bool,
+
+    /// Record current directory if its recognized as a cppm project.
+    #[clap(long)]
+    record: bool,
 
     //note: add makefile flag, for cppm use only generating files
     /// Configure cppm defaults
@@ -151,6 +155,9 @@ fn main() {
     }
     if args.toml {
         cppm::toml();
+    }
+    if args.record {
+        cppm::record();
     }
 
     if let Some(remove) = args.remove {

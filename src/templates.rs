@@ -37,7 +37,7 @@ pub fn compile_commands(
 /// clangd file template
 pub fn clangd() -> String {
     let cppm: crate::build::LocalConfig =
-        toml::from_str(&std::fs::read_to_string("Cppm.toml").unwrap()).unwrap();
+        toml_edit::de::from_str(&std::fs::read_to_string("Cppm.toml").unwrap()).unwrap();
     let includes: Vec<&str> = cppm.project["include"].split(", ").collect();
     let cd: String = format!(
 "
@@ -174,4 +174,16 @@ pub fn header_boiler(header_name: &str) -> String {
 #endif"#,
         header_name.to_uppercase().replace('-', "_")
     )
+}
+
+pub fn cppm_toml_template(name: &String, src: &str) -> String {
+    format!(r#"[project]
+name = "{name}"
+version = "1.0.0"
+edition = "2022"
+include = "include"
+src = "{src}"
+standard = "17"
+
+[dependencies]"#)
 }

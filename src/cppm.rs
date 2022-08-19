@@ -40,7 +40,13 @@ pub fn write(project_name: &str, location: &str) {
         .append(true)
         .open(&configfile())
         .unwrap()
-        .write_all(format!("\n[[config]]\n{}", toml::to_string_pretty(&config).unwrap()).as_bytes())
+        .write_all(
+            format!(
+                "\n[[config]]\n{}",
+                toml_edit::ser::to_string_pretty(&config).unwrap()
+            )
+            .as_bytes(),
+        )
         .expect("couldnt write to config file");
 }
 
@@ -73,12 +79,25 @@ pub fn list_projects() {
         std::process::exit(0);
     }
     let config: HashMap<String, Vec<Config>> =
-        toml::from_str(&std::fs::read_to_string(configfile()).unwrap()).unwrap();
+        toml_edit::de::from_str(&std::fs::read_to_string(configfile()).unwrap()).unwrap();
     let items: &[Config] = &config["config"];
     print!("\nProjects configured with cppm: \n");
     for i in items {
         println!("{}: {}", i.name, i.location);
     }
+}
+
+pub fn record() {
+    if !Path::new("Cppm.toml").exists() {
+        println!("{}", "This directory is not a Cppm Project.".red());
+        process::exit(0);
+    }
+    let ser: crate::build::LocalConfig =
+        toml_edit::de::from_str(&std::fs::read_to_string("Cppm.toml").unwrap()).unwrap();
+    write(
+        &ser.project["name"],
+        &format!("{}", std::env::current_dir().unwrap().display()),
+    );
 }
 
 /// Main struct
@@ -165,7 +184,6 @@ impl Cppm {
                 &format!("{}/{}", std::env::current_dir().unwrap().display(), pn),
             );
             local_open(&s, pn.clone());
-
         } else {
             let mut s = Cppm::init();
             s.project_name = _project_name;
@@ -219,7 +237,7 @@ impl Cppm {
                     process::exit(0);
                 }
                 let contents: Def =
-                    toml::from_str(&fs::read_to_string(defaults_file()).unwrap()).unwrap();
+                    toml_edit::de::from_str(&fs::read_to_string(defaults_file()).unwrap()).unwrap();
                 if contents.editor == "null" {
                     println!("{}", "You haven't configured a default editor yet!".red());
                     process::exit(0);
@@ -236,7 +254,7 @@ impl Cppm {
             process::exit(0);
         }
         let toml_config: HashMap<String, Vec<Config>> =
-            toml::from_str(&fs::read_to_string(configfile()).unwrap()).unwrap();
+            toml_edit::de::from_str(&fs::read_to_string(configfile()).unwrap()).unwrap();
         let config: &[Config] = &toml_config["config"];
         let mut b = false;
         for i in config {
@@ -317,7 +335,8 @@ impl Cppm {
 
         println!(
             "Installed version: cppm \"{}\" - Latest version: cppm {}",
-            env!("CARGO_PKG_VERSION"), latest
+            env!("CARGO_PKG_VERSION"),
+            latest
         )
     }
 
@@ -426,28 +445,12 @@ impl Cppm {
             .to_str()
             .unwrap()
             .to_string();
-
-        let mut cc: crate::build::LocalConfig = crate::build::LocalConfig {
-            project: HashMap::from([
-                ("name".to_string(), __loc__),
-                ("version".to_string(), "1.0.0".to_string()),
-                ("edition".to_string(), "2022".to_string()),
-                ("include".to_string(), "include".to_string()),
-                ("src".to_string(), "src/main.cpp".to_string()),
-                ("standard".to_string(), "17".to_string()),
-            ]),
-            dependencies: HashMap::new(),
-        };
+        let mut cc = crate::templates::cppm_toml_template(&__loc__, "src/main.cpp");
         if c {
-            cc.project
-                .insert("src".to_string(), "src/main.c".to_string());
+            cc = crate::templates::cppm_toml_template(&__loc__, "src/main.c");
         }
 
-        fs::write(
-            &format!("{}/Cppm.toml", loc),
-            toml::to_string(&cc).unwrap().as_bytes(),
-        )
-        .expect("Unable to write to file.");
+        fs::write(&format!("{}/Cppm.toml", loc), cc.as_bytes()).expect("Unable to write to file.");
     }
 }
 
@@ -460,22 +463,40 @@ fn path(s: &Cppm) -> (String, String) {
 
 /// removes a project who's location is in configfile
 // note: find a way to implement removing from the config file
+/// WARNING: WARNING: WARNING:
 pub fn remove(project_name: String) {
     let toml_config: HashMap<String, Vec<Config>> =
-        toml::from_str(&fs::read_to_string(configfile()).unwrap()).unwrap();
+        toml_edit::de::from_str(&fs::read_to_string(configfile()).unwrap()).unwrap();
+
     let config: &[Config] = &toml_config["config"];
     let project = config.iter().find(|p| p.name == project_name);
     if project.is_none() {
-        println!("Project does not exist or was not created with cppm!");
-        process::exit(1);
+        println!(
+            "{}",
+            "    Project does not exist or was not created with cppm!".red()
+        );
+        process::exit(0);
     }
     let project_location = project.unwrap().location.clone();
+    if !Path::new(&project_location).exists() {
+        println!(
+            "{}",
+            "    Project does not exist or was not created with cppm!".red()
+        );
+        process::exit(0);
+    }
     println!(
         "   Removing Project `{}`: {}",
         project_name.green(),
         project_location
     );
+
+    let file = &fs::read_to_string(configfile()).unwrap();
+    let file = file.replace(&project_location, "");
+    let file = file.replace(&project_name, "");
+
     fs::remove_dir_all(project_location).expect("Failed to remove project.");
+    fs::write(configfile(), file.as_bytes()).expect("could not modify configfile");
     process::exit(0);
 }
 
@@ -556,7 +577,7 @@ pub fn defaults() {
 
     fs::write(
         &defaults_file(),
-        toml::to_string(&config).unwrap().as_bytes(),
+        toml_edit::ser::to_string(&config).unwrap().as_bytes(),
     )
     .expect("Unable to write to file.");
 

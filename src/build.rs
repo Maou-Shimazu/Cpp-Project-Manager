@@ -16,7 +16,7 @@ use std::{
 /// ### Struct used to serialze Cppm.toml
 /// Usage:
 /// ```rs
-/// let value: LocalConfig = toml::from_str(&std::fs::read_to_string("Cppm.toml").unwrap
+/// let value: LocalConfig = toml_edit::de::from_str(&std::fs::read_to_string("Cppm.toml").unwrap
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LocalConfig {
@@ -50,7 +50,7 @@ pub struct LocalConfig {
 /// ### Struct used to serialze defaults file
 /// Usage:
 /// ```rs
-/// let value: Def = toml::from_str(&std::fs::read_to_string(&cppm::defaults_file()).unwrap()).unwrap();
+/// let value: Def = toml_edit::de::from_str(&std::fs::read_to_string(&cppm::defaults_file()).unwrap()).unwrap();
 /// ```
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Def {
@@ -85,7 +85,7 @@ pub fn build(release: bool, run_type: bool, i: bool, c: bool) {
     let mut target = String::new();
     let mut build_t = String::new();
 
-    let l: LocalConfig = toml::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
+    let l: LocalConfig = toml_edit::de::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
 
     let canc: String = std::fs::canonicalize(".")
         .unwrap()
@@ -105,12 +105,12 @@ pub fn build(release: bool, run_type: bool, i: bool, c: bool) {
         canc
     );
 
-    let cppm: LocalConfig = toml::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
+    let cppm: LocalConfig = toml_edit::de::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
 
     // Setting Env Vars. note: Only available when running with cppm.
     std::env::set_var("VERSION", cppm.project["version"].clone());
     std::env::set_var("PKGNAME", cppm.project["name"].clone());
-    let compilers: Def = toml::from_str(&read_to_string(&cppm::defaults_file()).unwrap()).unwrap();
+    let compilers: Def = toml_edit::de::from_str(&read_to_string(&cppm::defaults_file()).unwrap()).unwrap();
 
     let includes: Vec<&str> = cppm.project["include"].split(", ").collect();
     let includes: String = format!("-I{}", includes.join(" -I"));
@@ -290,7 +290,7 @@ pub fn run(release: bool, run_type: bool, c: bool, extra_args: Vec<String>) {
         );
         exit(0);
     }
-    let cppm: LocalConfig = toml::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
+    let cppm: LocalConfig = toml_edit::de::from_str(&read_to_string("Cppm.toml").unwrap()).unwrap();
 
     build(release, run_type, false, c);
 
@@ -308,7 +308,7 @@ pub fn run(release: bool, run_type: bool, c: bool, extra_args: Vec<String>) {
 
     #[cfg(windows)]
     let canc = canc.trim()[4..].to_string();
-    
+
     println!(
         "     {} `{} {}`",
         "Running".bright_blue().bold(),

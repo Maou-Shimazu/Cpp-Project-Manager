@@ -92,13 +92,14 @@ pub fn clint(src: Option<String>, c: bool) {
         return;
     }
     let cppm: crate::build::LocalConfig =
-        toml::from_str(&std::fs::read_to_string("Cppm.toml").unwrap()).unwrap();
+        toml_edit::de::from_str(&std::fs::read_to_string("Cppm.toml").unwrap()).unwrap();
 
     let includes: Vec<&str> = cppm.project["include"].split(", ").collect();
     let includes: String = format!("-I{}", includes.join(" -I"));
     let includes: Vec<&str> = includes.split(" ").collect();
 
     let source: String;
+
     if c {
         source = src.unwrap_or("src/main.c".to_string());
     } else {
