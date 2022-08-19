@@ -1,7 +1,7 @@
 use crate::build::LocalConfig;
 use git2::Repository;
 use serde::{Deserialize, Serialize};
-use std::io::Write;
+use std::{io::Write, process};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct LC {
@@ -38,9 +38,10 @@ pub fn read_deps(includes: Vec<&str>) -> Vec<String> {
         for (key, value) in cppm.dependencies {
             if !std::path::Path::new("Cppm.lock").exists() {
                 std::fs::File::create("Cppm.lock").expect("Could not create lock file.");
+                process::exit(0);
             }
-            let p = format!("{}/{key}/Cppm.toml", &regloc());
-            let loc = &format!("{}/{key}", &regloc());
+            let p = format!("{}/{}/{key}/Cppm.toml", &regloc(), cppm.project["name"]);
+            let loc = &format!("{}/{}/{key}", &regloc(), cppm.project["name"]);
             if !std::path::Path::new(loc).exists() {
                 match Repository::clone(&value, loc) {
                     Ok(_) => (),
@@ -73,9 +74,7 @@ pub fn read_deps(includes: Vec<&str>) -> Vec<String> {
                     .into_iter()
                     .map(|x| x.to_string())
                     .collect();
-
                 includes.append(&mut local_includes);
-                // println!("{:?}", includes.clone());
 
                 let mut config: PackageIncludes;
                 if !std::fs::read_to_string(format!("Cppm.lock"))
